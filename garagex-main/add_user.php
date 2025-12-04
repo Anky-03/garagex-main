@@ -1,12 +1,23 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/lock_helper.php';
 
 // Solo administradores
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     $_SESSION['message'] = 'Acceso denegado.';
     $_SESSION['alert_type'] = 'danger';
     header('Location: index.php');
+    exit();
+}
+
+$USER_CRUD_RESOURCE = 'user_crud';
+$LOCK_TTL_SECONDS = 300;
+
+if (!acquire_resource_lock($conn, $USER_CRUD_RESOURCE, intval($_SESSION['user_id']), $LOCK_TTL_SECONDS)) {
+    $_SESSION['message'] = 'Otro administrador está modificando usuarios. Intenta más tarde.';
+    $_SESSION['alert_type'] = 'warning';
+    header('Location: admin_dashboard.php');
     exit();
 }
 
@@ -84,3 +95,19 @@ include 'includes/header.php';
 </div>
 
 <?php include 'includes/footer.php'; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const heartbeat = () => {
+        fetch('lock_handler.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({action: 'heartbeat', resource: 'user_crud'})
+        }).catch(() => {});
+    };
+    heartbeat();
+    setInterval(heartbeat, 60000);
+});
+</script>

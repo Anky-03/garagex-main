@@ -2,6 +2,14 @@
 // Iniciar la sesión
 session_start();
 
+$userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;
+
+if ($userId !== null) {
+    define('SKIP_FEDERATED', true);
+    require_once 'config/database.php';
+    mysqli_query($conn, "DELETE FROM locks WHERE user_id = $userId");
+}
+
 // Destruir todas las variables de sesión
 $_SESSION = array();
 

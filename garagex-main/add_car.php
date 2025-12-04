@@ -1,10 +1,31 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/lock_helper.php';
 
 // Verificar si el usuario está logueado
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
+    exit();
+}
+
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$ADMIN_CAR_RESOURCE = 'admin_car_create';
+$LOCK_TTL_SECONDS = 300;
+
+if ($isAdmin && isset($_GET['release_lock'])) {
+    release_resource_lock($conn, $ADMIN_CAR_RESOURCE, intval($_SESSION['user_id']));
+    $redirect = isset($_GET['redirect']) ? $_GET['redirect'] : 'admin_dashboard.php';
+    header('Location: ' . $redirect);
+    exit();
+}
+
+if ($isAdmin && !acquire_resource_lock($conn, $ADMIN_CAR_RESOURCE, intval($_SESSION['user_id']), $LOCK_TTL_SECONDS)) {
+    $holder = get_lock_holder($conn, $ADMIN_CAR_RESOURCE);
+    $who = $holder && !empty($holder['nombre']) ? $holder['nombre'] : 'otro administrador';
+    $_SESSION['message'] = 'El formulario de alta de vehículos está ocupado por ' . $who . '. Intenta más tarde.';
+    $_SESSION['alert_type'] = 'warning';
+    header('Location: admin_dashboard.php');
     exit();
 }
 
@@ -81,7 +102,7 @@ include 'includes/header.php';
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> Guardar Vehículo
                             </button>
-                            <a href="dashboard.php" class="btn btn-secondary">
+                            <a href="<?php echo $isAdmin ? 'add_car.php?release_lock=1&redirect=admin_dashboard.php' : 'dashboard.php'; ?>" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Cancelar
                             </a>
                         </div>
@@ -95,7 +116,10 @@ include 'includes/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('car-form');
-    
+    const hasAdminLock = <?php echo $isAdmin ? 'true' : 'false'; ?>;
+    const lockResource = 'admin_car_create';
+    const redirectAfterSave = '<?php echo $isAdmin ? 'admin_dashboard.php' : 'dashboard.php'; ?>';
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -130,8 +154,20 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Redirigir al dashboard con mensaje de éxito
-                window.location.href = 'dashboard.php?success=1';
+                const goNext = () => {
+                    window.location.href = redirectAfterSave + '?success=1';
+                };
+                if (hasAdminLock) {
+                    fetch('lock_handler.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({action: 'release', resource: lockResource})
+                    }).finally(goNext);
+                } else {
+                    goNext();
+                }
             } else {
                 // Mostrar error
                 alert('Error: ' + data.message);
@@ -206,6 +242,20 @@ document.addEventListener('DOMContentLoaded', function() {
             alertaMantenimiento.classList.add('d-none');
         }
     });
+
+    if (hasAdminLock) {
+        const heartbeat = () => {
+            fetch('lock_handler.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({action: 'heartbeat', resource: lockResource})
+            }).catch(() => {});
+        };
+        heartbeat();
+        setInterval(heartbeat, 60000);
+    }
 });
 </script>
 

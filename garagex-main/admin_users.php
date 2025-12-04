@@ -1,12 +1,32 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/lock_helper.php';
 
 // Solo administradores
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     $_SESSION['message'] = 'Acceso denegado.';
     $_SESSION['alert_type'] = 'danger';
     header('Location: index.php');
+    exit();
+}
+
+$USER_CRUD_RESOURCE = 'user_crud';
+$LOCK_TTL_SECONDS = 300;
+
+if (isset($_GET['release_lock'])) {
+    release_resource_lock($conn, $USER_CRUD_RESOURCE, intval($_SESSION['user_id']));
+    $redirect = isset($_GET['redirect']) ? $_GET['redirect'] : 'admin_dashboard.php';
+    header('Location: ' . $redirect);
+    exit();
+}
+
+if (!acquire_resource_lock($conn, $USER_CRUD_RESOURCE, intval($_SESSION['user_id']), $LOCK_TTL_SECONDS)) {
+    $holder = get_lock_holder($conn, $USER_CRUD_RESOURCE);
+    $who = $holder && !empty($holder['nombre']) ? $holder['nombre'] : 'otro administrador';
+    $_SESSION['message'] = 'La sección de usuarios está siendo usada por ' . $who . '. Intenta más tarde.';
+    $_SESSION['alert_type'] = 'warning';
+    header('Location: admin_dashboard.php');
     exit();
 }
 
@@ -32,8 +52,12 @@ include 'includes/header.php';
         </div>
         <div class="col-md-4 text-end">
             <a href="add_user.php" class="btn btn-primary"><i class="fas fa-user-plus"></i> Agregar Usuario</a>
-            <a href="admin_dashboard.php" class="btn btn-secondary">Volver</a>
+            <a href="admin_users.php?release_lock=1&redirect=admin_dashboard.php" class="btn btn-secondary">Liberar y volver</a>
         </div>
+    </div>
+
+    <div class="alert alert-warning">
+        <strong>Bloqueo activo:</strong> mientras esta página esté abierta, ningún otro administrador podrá modificar usuarios.
     </div>
 
     <?php if ($result && mysqli_num_rows($result) > 0): ?>
@@ -76,3 +100,19 @@ include 'includes/header.php';
 </div>
 
 <?php include 'includes/footer.php'; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const heartbeat = () => {
+        fetch('lock_handler.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({action: 'heartbeat', resource: 'user_crud'})
+        }).catch(() => {});
+    };
+    heartbeat();
+    setInterval(heartbeat, 60000);
+});
+</script>

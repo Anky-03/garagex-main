@@ -13,6 +13,10 @@ if (!$conn) {
     die("ERROR: No se pudo conectar. " . mysqli_connect_error());
 }
 
+if (!defined('SKIP_FEDERATED')) {
+    define('SKIP_FEDERATED', false);
+}
+
 // Configuración de la base federada
 $FED_SERVER = '192.168.137.2';
 $FED_PORT   = 3307;
@@ -20,11 +24,14 @@ $FED_USER   = 'iram';
 $FED_PASS   = 'iram123';
 $FED_DB     = 'garagex_fed';
 
-// Conexión a la base federada
-$conn_fed = mysqli_connect($FED_SERVER, $FED_USER, $FED_PASS, $FED_DB, $FED_PORT);
+if (!SKIP_FEDERATED) {
+    $conn_fed = mysqli_connect($FED_SERVER, $FED_USER, $FED_PASS, $FED_DB, $FED_PORT);
 
-if (!$conn_fed) {
-    die("ERROR BD federada (garagex_fed): " . mysqli_connect_error());
+    if (!$conn_fed) {
+        die("ERROR BD federada (garagex_fed): " . mysqli_connect_error());
+    }
+} else {
+    $conn_fed = null;
 }
 
 // Crear base de datos si no existe
@@ -47,6 +54,18 @@ if (mysqli_query($conn, $sql)) {
         echo "ERROR: No se pudo ejecutar $sql_users. " . mysqli_error($conn);
     }
     
+    // Crear tabla de locks si no existe
+    $sql_locks = "CREATE TABLE IF NOT EXISTS locks (
+        resource VARCHAR(64) NOT NULL PRIMARY KEY,
+        user_id INT(11) NOT NULL,
+        locked_at DATETIME NOT NULL,
+        CONSTRAINT fk_locks_user FOREIGN KEY (user_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    )";
+
+    if (!mysqli_query($conn, $sql_locks)) {
+        echo "ERROR: No se pudo ejecutar $sql_locks. " . mysqli_error($conn);
+    }
+
     // Crear tabla de carros si no existe
     $sql_cars = "CREATE TABLE IF NOT EXISTS carros (
         id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
