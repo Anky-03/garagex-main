@@ -82,13 +82,15 @@ include 'includes/header.php';
     <!-- Tarjetas de estadísticas -->
     <div class="row dashboard-stats">
         <div class="col-md-4 mb-4">
-            <div class="stats-card bg-primary text-white">
-                <div class="stats-icon">
-                    <i class="fas fa-users"></i>
+            <a href="admin_users.php" class="text-white text-decoration-none">
+                <div class="stats-card bg-primary text-white">
+                    <div class="stats-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3><?php echo $total_users; ?></h3>
+                    <p>Usuarios Registrados</p>
                 </div>
-                <h3><?php echo $total_users; ?></h3>
-                <p>Usuarios Registrados</p>
-            </div>
+            </a>
         </div>
         <div class="col-md-4 mb-4">
             <div class="stats-card bg-success text-white">
