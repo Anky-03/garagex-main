@@ -14,12 +14,38 @@ if ($_SESSION['role'] !== 'admin') {
     exit();
 }
 
-// Obtener todos los carros
-$sql = "SELECT c.*, u.nombre as nombre_usuario, u.id as usuario_id 
-        FROM carros c 
-        JOIN usuarios u ON c.id_usuario = u.id 
-        ORDER BY c.kilometraje DESC";
-$result = mysqli_query($conn, $sql);
+// Mapear usuarios locales para acceder a sus nombres y roles
+$users_map = [];
+$users_query = "SELECT id, nombre, role FROM usuarios";
+$users_query_result = mysqli_query($conn, $users_query);
+if ($users_query_result) {
+    while ($user_row = mysqli_fetch_assoc($users_query_result)) {
+        $users_map[$user_row['id']] = $user_row;
+    }
+}
+
+// Obtener todos los carros desde la base federada
+$cars_sql = "SELECT * FROM carros ORDER BY kilometraje DESC";
+$cars_result = mysqli_query($conn_fed, $cars_sql);
+$cars = [];
+if ($cars_result) {
+    while ($car_row = mysqli_fetch_assoc($cars_result)) {
+        $car_row['nombre_usuario'] = isset($users_map[$car_row['id_usuario']])
+            ? $users_map[$car_row['id_usuario']]['nombre']
+            : 'Usuario #' . $car_row['id_usuario'];
+        $cars[] = $car_row;
+    }
+}
+
+// Obtener usuarios con vehículos para los selectores
+$users_with_cars = [];
+foreach ($cars as $car_row) {
+    $uid = $car_row['id_usuario'];
+    if (isset($users_map[$uid]) && $users_map[$uid]['role'] === 'usuario') {
+        $users_with_cars[$uid] = $users_map[$uid]['nombre'];
+    }
+}
+natcasesort($users_with_cars);
 
 // Estadísticas
 $total_users_sql = "SELECT COUNT(*) as total FROM usuarios WHERE role = 'usuario'";
@@ -27,14 +53,14 @@ $total_users_result = mysqli_query($conn, $total_users_sql);
 $total_users = mysqli_fetch_assoc($total_users_result)['total'];
 
 $total_cars_sql = "SELECT COUNT(*) as total FROM carros";
-$total_cars_result = mysqli_query($conn, $total_cars_sql);
+$total_cars_result = mysqli_query($conn_fed, $total_cars_sql);
 $total_cars = mysqli_fetch_assoc($total_cars_result)['total'];
 
 // Consideramos que un vehículo necesita mantenimiento si:
 // 1. El kilometraje es mayor o igual al próximo cambio programado, o
 // 2. El kilometraje es mayor o igual a 10,000 km y nunca se ha registrado un cambio (contador_cambios = 0)
 $maintenance_needed_sql = "SELECT COUNT(*) as total FROM carros WHERE (kilometraje >= proximo_cambio) OR (kilometraje >= 10000 AND contador_cambios = 0)";
-$maintenance_needed_result = mysqli_query($conn, $maintenance_needed_sql);
+$maintenance_needed_result = mysqli_query($conn_fed, $maintenance_needed_sql);
 $maintenance_needed = mysqli_fetch_assoc($maintenance_needed_result)['total'];
 
 // Incluir header
@@ -131,7 +157,7 @@ include 'includes/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($car = mysqli_fetch_assoc($result)): ?>
+                        <?php foreach ($cars as $car): ?>
                             <tr data-id="<?php echo $car['id']; ?>" data-kilometraje="<?php echo $car['kilometraje']; ?>" data-user="<?php echo $car['nombre_usuario']; ?>">
                                 <td><?php echo $car['id']; ?></td>
                                 <td><?php echo htmlspecialchars($car['nombre_usuario']); ?></td>
@@ -162,7 +188,7 @@ include 'includes/header.php';
                                     </div>
                                 </td>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
@@ -248,18 +274,9 @@ include 'includes/header.php';
                                     <label for="cambios-usuario-select" class="form-label">Seleccionar Usuario:</label>
                                     <select id="cambios-usuario-select" class="form-select">
                                         <option value="">Selecciona un usuario</option>
-                                        <?php
-                                        // Obtener usuarios con vehículos
-                                        $users_sql = "SELECT DISTINCT u.id, u.nombre 
-                                                    FROM usuarios u 
-                                                    JOIN carros c ON u.id = c.id_usuario 
-                                                    WHERE u.role = 'usuario' 
-                                                    ORDER BY u.nombre";
-                                        $users_result = mysqli_query($conn, $users_sql);
-                                        while ($user = mysqli_fetch_assoc($users_result)) {
-                                            echo '<option value="' . $user['id'] . '">' . htmlspecialchars($user['nombre']) . '</option>';
-                                        }
-                                        ?>
+                                        <?php foreach ($users_with_cars as $userId => $userName): ?>
+                                            <option value="<?php echo $userId; ?>"><?php echo htmlspecialchars($userName); ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div class="col-md-6 d-flex align-items-end">

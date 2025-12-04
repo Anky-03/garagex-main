@@ -21,12 +21,12 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
     exit();
 }
 
-$car_id = mysqli_real_escape_string($conn, $_GET['id']);
+$car_id = mysqli_real_escape_string($conn_fed, $_GET['id']);
 $is_admin = isset($_GET['admin']) && $_GET['admin'] == 1;
 
 // Obtener información del carro
 $sql = "SELECT * FROM carros WHERE id = '$car_id'";
-$result = mysqli_query($conn, $sql);
+$result = mysqli_query($conn_fed, $sql);
 
 if (mysqli_num_rows($result) == 0) {
     $_SESSION['message'] = "El vehículo no existe.";
@@ -52,10 +52,10 @@ if ($_SESSION['role'] !== 'admin' && $car['id_usuario'] != $_SESSION['user_id'])
 
 // Procesar formulario
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $marca = mysqli_real_escape_string($conn, $_POST['marca']);
-    $modelo = mysqli_real_escape_string($conn, $_POST['modelo']);
-    $año = mysqli_real_escape_string($conn, $_POST['año']);
-    $kilometraje = mysqli_real_escape_string($conn, $_POST['kilometraje']);
+    $marca = mysqli_real_escape_string($conn_fed, $_POST['marca']);
+    $modelo = mysqli_real_escape_string($conn_fed, $_POST['modelo']);
+    $año = mysqli_real_escape_string($conn_fed, $_POST['año']);
+    $kilometraje = mysqli_real_escape_string($conn_fed, $_POST['kilometraje']);
     
     // Validar campos
     if (empty($marca) || empty($modelo) || empty($año) || empty($kilometraje)) {
@@ -74,7 +74,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     kilometraje = '$kilometraje' WHERE id = '$car_id'";
         }
         
-        if (mysqli_query($conn, $sql)) {
+        if (mysqli_query($conn_fed, $sql)) {
             $_SESSION['message'] = "Vehículo actualizado correctamente.";
             $_SESSION['alert_type'] = "success";
             
@@ -90,7 +90,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
             exit();
         } else {
-            $_SESSION['message'] = "Error al actualizar el vehículo: " . mysqli_error($conn);
+            $_SESSION['message'] = "Error al actualizar el vehículo: " . mysqli_error($conn_fed);
             $_SESSION['alert_type'] = "danger";
         }
     }

@@ -13,6 +13,20 @@ if (!$conn) {
     die("ERROR: No se pudo conectar. " . mysqli_connect_error());
 }
 
+// Configuración de la base federada
+$FED_SERVER = '192.168.137.2';
+$FED_PORT   = 3307;
+$FED_USER   = 'iram';
+$FED_PASS   = 'iram123';
+$FED_DB     = 'garagex_fed';
+
+// Conexión a la base federada
+$conn_fed = mysqli_connect($FED_SERVER, $FED_USER, $FED_PASS, $FED_DB, $FED_PORT);
+
+if (!$conn_fed) {
+    die("ERROR BD federada (garagex_fed): " . mysqli_connect_error());
+}
+
 // Crear base de datos si no existe
 $sql = "CREATE DATABASE IF NOT EXISTS " . DB_NAME;
 if (mysqli_query($conn, $sql)) {

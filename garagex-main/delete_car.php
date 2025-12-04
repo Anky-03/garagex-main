@@ -24,11 +24,11 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
     exit();
 }
 
-$car_id = mysqli_real_escape_string($conn, $_GET['id']);
+$car_id = mysqli_real_escape_string($conn_fed, $_GET['id']);
 
 // Obtener información del carro para verificar que existe
 $check_sql = "SELECT * FROM carros WHERE id = '$car_id'";
-$check_result = mysqli_query($conn, $check_sql);
+$check_result = mysqli_query($conn_fed, $check_sql);
 
 if (mysqli_num_rows($check_result) == 0) {
     $_SESSION['message'] = "El vehículo no existe.";
@@ -38,13 +38,14 @@ if (mysqli_num_rows($check_result) == 0) {
 }
 
 // Eliminar el carro
+
 $sql = "DELETE FROM carros WHERE id = '$car_id'";
 
-if (mysqli_query($conn, $sql)) {
+if (mysqli_query($conn_fed, $sql)) {
     $_SESSION['message'] = "Vehículo eliminado correctamente.";
     $_SESSION['alert_type'] = "success";
 } else {
-    $_SESSION['message'] = "Error al eliminar el vehículo: " . mysqli_error($conn);
+    $_SESSION['message'] = "Error al eliminar el vehículo: " . mysqli_error($conn_fed);
     $_SESSION['alert_type'] = "danger";
 }
 

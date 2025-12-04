@@ -28,9 +28,14 @@ if (!isset($_SESSION['user_id']) && !preg_match('/\/api\/login/', $_SERVER['REQU
 require_once '../config/database.php';
 
 // Sanitizar entrada
-function sanitize_input($data) {
+function sanitize_input($data, $dbConnection = null) {
     global $conn;
-    return mysqli_real_escape_string($conn, htmlspecialchars(strip_tags(trim($data))));
+    $activeConnection = $dbConnection ?? $conn;
+    $cleanValue = htmlspecialchars(strip_tags(trim($data)));
+    if (!$activeConnection) {
+        return $cleanValue;
+    }
+    return mysqli_real_escape_string($activeConnection, $cleanValue);
 }
 
 // Obtener parámetros desde GET

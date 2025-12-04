@@ -21,15 +21,12 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
     exit();
 }
 
-$car_id = mysqli_real_escape_string($conn, $_GET['id']);
+$car_id = mysqli_real_escape_string($conn_fed, $_GET['id']);
 $is_admin = isset($_GET['admin']) && $_GET['admin'] == 1;
 
 // Obtener información del carro
-$sql = "SELECT c.*, u.nombre as nombre_usuario 
-        FROM carros c 
-        JOIN usuarios u ON c.id_usuario = u.id 
-        WHERE c.id = '$car_id'";
-$result = mysqli_query($conn, $sql);
+$sql = "SELECT * FROM carros WHERE id = '$car_id'";
+$result = mysqli_query($conn_fed, $sql);
 
 if (mysqli_num_rows($result) == 0) {
     $_SESSION['message'] = "El vehículo no existe.";
@@ -44,6 +41,16 @@ if (mysqli_num_rows($result) == 0) {
 }
 
 $car = mysqli_fetch_assoc($result);
+
+// Obtener nombre del propietario desde la base local
+$owner_name = 'Usuario #' . $car['id_usuario'];
+$owner_id = mysqli_real_escape_string($conn, $car['id_usuario']);
+$owner_sql = "SELECT nombre FROM usuarios WHERE id = '$owner_id'";
+$owner_result = mysqli_query($conn, $owner_sql);
+if ($owner_result && mysqli_num_rows($owner_result) > 0) {
+    $owner_name = mysqli_fetch_assoc($owner_result)['nombre'];
+}
+$car['nombre_usuario'] = $owner_name;
 
 // Verificar si el usuario tiene permiso para ver este carro
 if ($_SESSION['role'] !== 'admin' && $car['id_usuario'] != $_SESSION['user_id']) {

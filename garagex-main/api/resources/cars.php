@@ -1,8 +1,8 @@
 <?php
 // API REST para recursos de carros
 
-// Obtener ID del recurso si existe
-$id = isset($endpoint_parts[1]) ? sanitize_input($endpoint_parts[1]) : null;
+// Obtener ID del recurso si existe usando la base federada
+$id = isset($endpoint_parts[1]) ? sanitize_input($endpoint_parts[1], $conn_fed) : null;
 
 // Manejar las solicitudes según el método HTTP
 switch ($method) {
@@ -10,7 +10,7 @@ switch ($method) {
         // Obtener marcas (para combos)
         if ($id === 'marcas') {
             $sql = "SELECT DISTINCT marca FROM carros ORDER BY marca";
-            $result = mysqli_query($conn, $sql);
+            $result = mysqli_query($conn_fed, $sql);
             
             if ($result) {
                 $marcas = [];
@@ -26,7 +26,7 @@ switch ($method) {
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Error al obtener las marcas: ' . mysqli_error($conn)
+                    'message' => 'Error al obtener las marcas: ' . mysqli_error($conn_fed)
                 ]);
             }
             break;
@@ -34,7 +34,7 @@ switch ($method) {
         
         // Endpoint para obtener estadísticas de cambios de aceite por usuario
         if ($id === 'cambios-aceite' && isset($endpoint_parts[2])) {
-            $user_id = sanitize_input($endpoint_parts[2]);
+            $user_id = sanitize_input($endpoint_parts[2], $conn_fed);
             
             // Verificar permisos (solo admin)
             if ($_SESSION['role'] !== 'admin') {
@@ -52,7 +52,7 @@ switch ($method) {
                     JOIN usuarios u ON c.id_usuario = u.id 
                     WHERE c.id_usuario = '$user_id'";
                     
-            $result = mysqli_query($conn, $sql);
+            $result = mysqli_query($conn_fed, $sql);
             
             if ($result) {
                 $stats = [
@@ -95,7 +95,7 @@ switch ($method) {
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Error al obtener estadísticas: ' . mysqli_error($conn)
+                    'message' => 'Error al obtener estadísticas: ' . mysqli_error($conn_fed)
                 ]);
             }
             break;
@@ -115,7 +115,7 @@ switch ($method) {
                 $sql .= " AND c.id_usuario = '$user_id'";
             }
             
-            $result = mysqli_query($conn, $sql);
+            $result = mysqli_query($conn_fed, $sql);
             
             if ($result && mysqli_num_rows($result) > 0) {
                 $car = mysqli_fetch_assoc($result);
@@ -143,7 +143,7 @@ switch ($method) {
             }
             
             $sql .= " ORDER BY c.id DESC";
-            $result = mysqli_query($conn, $sql);
+            $result = mysqli_query($conn_fed, $sql);
             
             if ($result) {
                 $cars = [];
@@ -159,7 +159,7 @@ switch ($method) {
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Error al obtener los vehículos: ' . mysqli_error($conn)
+                    'message' => 'Error al obtener los vehículos: ' . mysqli_error($conn_fed)
                 ]);
             }
         }
@@ -168,7 +168,7 @@ switch ($method) {
     case 'POST':
         // Endpoint para registrar cambio de aceite
         if ($id === 'registrar-cambio' && isset($endpoint_parts[2])) {
-            $car_id = sanitize_input($endpoint_parts[2]);
+            $car_id = sanitize_input($endpoint_parts[2], $conn_fed);
             
             // Verificar que el carro exista y el usuario tenga permisos
             $check_sql = "SELECT * FROM carros WHERE id = '$car_id'";
@@ -177,7 +177,7 @@ switch ($method) {
                 $check_sql .= " AND id_usuario = '$user_id'";
             }
             
-            $check_result = mysqli_query($conn, $check_sql);
+            $check_result = mysqli_query($conn_fed, $check_sql);
             if (mysqli_num_rows($check_result) == 0) {
                 http_response_code(404);
                 echo json_encode([
@@ -200,7 +200,7 @@ switch ($method) {
                     notificado = 0 
                     WHERE id = '$car_id'";
             
-            if (mysqli_query($conn, $sql)) {
+            if (mysqli_query($conn_fed, $sql)) {
                 echo json_encode([
                     'success' => true,
                     'message' => 'Cambio de aceite registrado correctamente',
@@ -211,7 +211,7 @@ switch ($method) {
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Error al registrar el cambio: ' . mysqli_error($conn)
+                    'message' => 'Error al registrar el cambio: ' . mysqli_error($conn_fed)
                 ]);
             }
             break;
@@ -227,15 +227,15 @@ switch ($method) {
             break;
         }
         
-        $marca = sanitize_input($data['marca']);
-        $modelo = sanitize_input($data['modelo']);
-        $año = sanitize_input($data['año']);
-        $kilometraje = sanitize_input($data['kilometraje']);
+        $marca = sanitize_input($data['marca'], $conn_fed);
+        $modelo = sanitize_input($data['modelo'], $conn_fed);
+        $año = sanitize_input($data['año'], $conn_fed);
+        $kilometraje = sanitize_input($data['kilometraje'], $conn_fed);
         $id_usuario = $_SESSION['user_id'];
         
         // Si es admin y se especificó un usuario
         if ($_SESSION['role'] === 'admin' && isset($data['id_usuario'])) {
-            $id_usuario = sanitize_input($data['id_usuario']);
+            $id_usuario = sanitize_input($data['id_usuario'], $conn_fed);
         }
         
         // Verificar si ya existe un registro similar creado recientemente (30 segundos)
@@ -247,7 +247,7 @@ switch ($method) {
                                 AND kilometraje = '$kilometraje' 
                                 AND created_at > DATE_SUB(NOW(), INTERVAL 30 SECOND)";
         
-        $duplicate_result = mysqli_query($conn, $check_duplicate_sql);
+        $duplicate_result = mysqli_query($conn_fed, $check_duplicate_sql);
         
         if ($duplicate_result && mysqli_num_rows($duplicate_result) > 0) {
             // Ya existe un registro similar reciente, devolver ese ID en lugar de crear uno nuevo
@@ -268,8 +268,8 @@ switch ($method) {
         $sql = "INSERT INTO carros (id_usuario, marca, modelo, año, kilometraje, proximo_cambio, contador_cambios, created_at) 
                 VALUES ('$id_usuario', '$marca', '$modelo', '$año', '$kilometraje', '$proximo_cambio', '0', NOW())";
         
-        if (mysqli_query($conn, $sql)) {
-            $new_id = mysqli_insert_id($conn);
+        if (mysqli_query($conn_fed, $sql)) {
+            $new_id = mysqli_insert_id($conn_fed);
             echo json_encode([
                 'success' => true,
                 'message' => 'Vehículo creado correctamente',
@@ -279,7 +279,7 @@ switch ($method) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
-                'message' => 'Error al crear el vehículo: ' . mysqli_error($conn)
+                'message' => 'Error al crear el vehículo: ' . mysqli_error($conn_fed)
             ]);
         }
         break;
@@ -289,7 +289,7 @@ switch ($method) {
         if (!$id) {
             // Intentar obtener el ID desde los datos enviados
             if (isset($data['id'])) {
-                $id = sanitize_input($data['id']);
+                $id = sanitize_input($data['id'], $conn_fed);
             } else {
                 http_response_code(400);
                 echo json_encode([
@@ -307,7 +307,7 @@ switch ($method) {
             $check_sql .= " AND id_usuario = '$user_id'";
         }
         
-        $check_result = mysqli_query($conn, $check_sql);
+        $check_result = mysqli_query($conn_fed, $check_sql);
         if (mysqli_num_rows($check_result) == 0) {
             http_response_code(404);
             echo json_encode([
@@ -329,10 +329,10 @@ switch ($method) {
             break;
         }
         
-        $marca = sanitize_input($data['marca']);
-        $modelo = sanitize_input($data['modelo']);
-        $año = sanitize_input($data['año']);
-        $kilometraje = sanitize_input($data['kilometraje']);
+        $marca = sanitize_input($data['marca'], $conn_fed);
+        $modelo = sanitize_input($data['modelo'], $conn_fed);
+        $año = sanitize_input($data['año'], $conn_fed);
+        $kilometraje = sanitize_input($data['kilometraje'], $conn_fed);
         
         // Si el kilometraje cambia y es mayor a 10,000, actualizar fecha de cambio
         if ($kilometraje != $car['kilometraje']) {
@@ -344,7 +344,7 @@ switch ($method) {
                     kilometraje = '$kilometraje' WHERE id = '$id'";
         }
         
-        if (mysqli_query($conn, $sql)) {
+        if (mysqli_query($conn_fed, $sql)) {
             echo json_encode([
                 'success' => true,
                 'message' => 'Vehículo actualizado correctamente'
@@ -353,7 +353,7 @@ switch ($method) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
-                'message' => 'Error al actualizar el vehículo: ' . mysqli_error($conn)
+                'message' => 'Error al actualizar el vehículo: ' . mysqli_error($conn_fed)
             ]);
         }
         break;
@@ -363,7 +363,7 @@ switch ($method) {
         if (!$id) {
             // Intentar obtener el ID desde los datos enviados
             if (isset($data['id'])) {
-                $id = sanitize_input($data['id']);
+                $id = sanitize_input($data['id'], $conn_fed);
             } else {
                 http_response_code(400);
                 echo json_encode([
@@ -384,7 +384,7 @@ switch ($method) {
             $check_sql .= " AND id_usuario = '$user_id'";
         }
         
-        $check_result = mysqli_query($conn, $check_sql);
+        $check_result = mysqli_query($conn_fed, $check_sql);
         if (mysqli_num_rows($check_result) == 0) {
             http_response_code(404);
             echo json_encode([
@@ -395,7 +395,7 @@ switch ($method) {
         }
         
         $sql = "DELETE FROM carros WHERE id = '$id'";
-        if (mysqli_query($conn, $sql)) {
+        if (mysqli_query($conn_fed, $sql)) {
             echo json_encode([
                 'success' => true,
                 'message' => 'Vehículo eliminado correctamente'
@@ -404,7 +404,7 @@ switch ($method) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
-                'message' => 'Error al eliminar el vehículo: ' . mysqli_error($conn)
+                'message' => 'Error al eliminar el vehículo: ' . mysqli_error($conn_fed)
             ]);
         }
         break;

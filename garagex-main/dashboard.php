@@ -14,10 +14,10 @@ if ($_SESSION['role'] === 'admin') {
     exit();
 }
 
-// Obtener los carros del usuario actual
-$user_id = $_SESSION['user_id'];
+// Obtener los carros del usuario actual usando la base federada
+$user_id = mysqli_real_escape_string($conn_fed, $_SESSION['user_id']);
 $sql = "SELECT * FROM carros WHERE id_usuario = '$user_id'";
-$result = mysqli_query($conn, $sql);
+$result = mysqli_query($conn_fed, $sql);
 
 // Verificar notificaciones de mantenimiento
 // Consideramos que un vehículo necesita mantenimiento si:
@@ -27,7 +27,7 @@ $maintenance_sql = "SELECT * FROM carros WHERE id_usuario = '$user_id' AND
                    ((kilometraje >= proximo_cambio) OR 
                    (kilometraje >= 10000 AND contador_cambios = 0)) AND 
                    notificado = 0";
-$maintenance_result = mysqli_query($conn, $maintenance_sql);
+$maintenance_result = mysqli_query($conn_fed, $maintenance_sql);
 
 if (mysqli_num_rows($maintenance_result) > 0) {
     $cars_needing_maintenance = [];
@@ -37,7 +37,7 @@ if (mysqli_num_rows($maintenance_result) > 0) {
         // Actualizar el estado de notificación
         $car_id = $maintenance_car['id'];
         $update_notification = "UPDATE carros SET notificado = 1 WHERE id = '$car_id'";
-        mysqli_query($conn, $update_notification);
+        mysqli_query($conn_fed, $update_notification);
     }
     
     // Crear mensaje de notificación
