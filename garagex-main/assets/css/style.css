@@ -1,0 +1,69 @@
+/* Estilos personalizados para GarageX */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    /* Asegura que el body ocupe toda la altura de la ventana */
+}
+
+.main-content {
+    flex: 1 0 auto;
+}
+
+footer {
+    margin-top: auto;
+}
+
+.navbar-brand img {
+    margin-right: 10px;
+}
+
+.car-card {
+    transition: transform 0.3s;
+    margin-bottom: 20px;
+}
+
+.car-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.car-image {
+    height: 160px;
+    object-fit: cover;
+}
+
+.alert-maintenance {
+    background-color: #ffe0e0;
+    border-color: #ffcccc;
+    color: #d8000c;
+}
+
+.login-container, .register-container {
+    max-width: 450px;
+    margin: 50px auto;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.dashboard-stats {
+    margin-bottom: 30px;
+}
+
+.stats-card {
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+    transition: transform 0.3s;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+}
+
+.stats-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+} 
